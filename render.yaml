@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: votewise-ai-backend
+    env: node
+    region: singapore
+    plan: free
+    buildCommand: cd backend && npm ci
+    startCommand: cd backend && node src/index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 8080
+      - key: FIREBASE_PROJECT_ID
+        sync: false
+      - key: GOOGLE_CLOUD_PROJECT
+        sync: false
+      - key: FIREBASE_DATABASE_URL
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
