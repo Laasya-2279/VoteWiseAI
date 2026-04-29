@@ -1,11 +1,15 @@
 import './globals.css';
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
+
 export const metadata = {
   title: 'VoteWise AI — Indian Election Assistant',
   description: 'An intelligent AI assistant that helps Indian citizens understand the election process, timelines, voter eligibility, and democratic rights interactively.',
   keywords: 'Indian elections, voter guide, election process, ECI, voting, democracy, AI assistant',
   authors: [{ name: 'VoteWise AI Team' }],
-  viewport: 'width=device-width, initial-scale=1',
 };
 
 export default function RootLayout({ children }) {

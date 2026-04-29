@@ -28,9 +28,16 @@ function initializeFirebase() {
       config.databaseURL = process.env.FIREBASE_DATABASE_URL;
     }
 
-    // Use service account file if available
-    if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT && process.env.NODE_ENV !== 'test') {
-      const serviceAccount = require(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
+    // Use service account from environment variable (Best for Render/Cloud)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+      config.credential = admin.credential.cert(serviceAccount);
+    } 
+    // Use service account file if available (Best for Local)
+    else if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT && process.env.NODE_ENV !== 'test') {
+      const path = require('path');
+      const serviceAccountPath = path.resolve(__dirname, '../../../', process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
+      const serviceAccount = require(serviceAccountPath);
       config.credential = admin.credential.cert(serviceAccount);
     } else if (process.env.NODE_ENV !== 'test') {
       // Use application default credentials in Cloud Run
