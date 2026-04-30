@@ -50,6 +50,10 @@ app.use(express.raw({ type: 'audio/*', limit: '10mb' }));
 app.use(globalLimiter);
 
 // ─── Routes ────────────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.json({ status: 'active', message: 'VoteWise AI Backend is running' });
+});
+
 app.use('/api', apiRoutes);
 
 // ─── Error Handling ────────────────────────────────────────
