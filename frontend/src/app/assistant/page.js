@@ -136,8 +136,49 @@ export default function AssistantPage() {
               animate={{ opacity: 1, y: 0 }}
               className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div className={`max-w-[80%] rounded-2xl px-5 py-3 ${msg.role === 'user' ? 'gradient-saffron text-white' : 'glass-card'}`}>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+              <div className={`max-w-[80%] rounded-2xl px-5 py-4 ${msg.role === 'user' ? 'gradient-saffron text-white shadow-lg shadow-saffron-500/20' : 'glass-card border border-white/10'}`}>
+                {msg.role === 'assistant' && msg.source !== 'system' ? (
+                  <div className="space-y-4">
+                    {msg.text.split('\n\n').map((section, idx) => {
+                      if (section.toLowerCase().includes('direct answer:')) {
+                        return (
+                          <div key={idx} className="pb-3 border-b border-white/5">
+                            <p className="text-white font-medium leading-relaxed">
+                              {section.replace(/direct answer:?\s*/i, '').replace(/\*\*/g, '')}
+                            </p>
+                          </div>
+                        );
+                      }
+                      if (section.toLowerCase().includes('supporting points') || section.toLowerCase().includes('supporting context')) {
+                        return (
+                          <div key={idx} className="space-y-2">
+                            <p className="text-xs font-bold uppercase tracking-wider text-saffron-400">Supporting Context</p>
+                            <p className="text-gray-300 text-sm leading-relaxed">
+                              {section.replace(/supporting points from context:?\s*/i, '').replace(/supporting context:?\s*/i, '').replace(/\*\*/g, '')}
+                            </p>
+                          </div>
+                        );
+                      }
+                      if (section.toLowerCase().includes('confidence level') || section.toLowerCase().includes('confidence:')) {
+                        const confidence = section.match(/\d+%/)?.[0] || 'High';
+                        return (
+                          <div key={idx} className="flex items-center gap-2 pt-2">
+                            <div className="flex-1 h-1 bg-white/5 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-saffron-500 transition-all duration-1000" 
+                                style={{ width: confidence }}
+                              />
+                            </div>
+                            <p className="text-[10px] text-gray-500 font-medium">Confidence: {confidence}</p>
+                          </div>
+                        );
+                      }
+                      return <p key={idx} className="text-sm leading-relaxed whitespace-pre-wrap">{section.replace(/\*\*/g, '')}</p>;
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                )}
                 {msg.source && msg.role === 'assistant' && msg.source !== 'system' && (
                   <p className="text-xs text-gray-500 mt-2 flex items-center gap-1">
                     <span aria-hidden="true">📄</span>

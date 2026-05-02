@@ -40,20 +40,15 @@ jest.mock('firebase-admin', () => {
   };
 });
 
-// Mock Vertex AI
-jest.mock('@google-cloud/vertexai', () => ({
-  VertexAI: jest.fn().mockImplementation(() => ({
-    getGenerativeModel: jest.fn().mockReturnValue({
-      generateContent: jest.fn().mockResolvedValue({
-        response: {
-          candidates: [{
-            content: { parts: [{ text: 'Mocked AI response about elections.' }] },
-          }],
-        },
-      }),
-    }),
-  })),
-}));
+// Mock Gemini fetch API
+global.fetch = jest.fn(() =>
+  Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve({
+      candidates: [{ content: { parts: [{ text: 'Mocked AI response about elections.' }] } }]
+    })
+  })
+);
 
 // Mock TTS
 jest.mock('@google-cloud/text-to-speech', () => ({

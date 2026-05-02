@@ -6,7 +6,7 @@ const { body, validationResult } = require('express-validator');
 const { logger } = require('../utils/logger');
 const { classifyIntent } = require('../utils/intentParser');
 const { checkEligibility } = require('../utils/eligibilityChecker');
-const { retrieveChunks, generateGroundedResponse } = require('../services/ragEngine');
+const { ragPipeline } = require('../services/ragPipeline');
 const { synthesizeSpeech, transcribeSpeech } = require('../services/voiceService');
 const { getQuestions, calculateScore, saveScore } = require('../services/quizEngine');
 const { getFirestore, getRealtimeDB } = require('../config/firebase');
@@ -47,9 +47,8 @@ router.post(
       const { intent, confidence, entities } = classifyIntent(query);
 
       // Retrieve and generate
-      const firestore = getFirestore();
-      const chunks = await retrieveChunks(query, firestore);
-      const result = await generateGroundedResponse(query, chunks, intent);
+      // Execute modular RAG pipeline
+      const result = await ragPipeline(query, intent);
 
       const responseTime = Date.now() - startTime;
 
