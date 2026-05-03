@@ -1,13 +1,14 @@
 /**
- * Intent Parser — classifies user queries into actionable intents
- * and extracts relevant entities.
- *
- * Intents: process_query, eligibility_query, timeline_query,
- *          candidate_query, results_query, glossary_query, unknown
+ * @fileoverview Intent classification for VoteWise AI assistant.
+ * Parses user queries into structured intent objects for routing
+ * to the appropriate Firebase data source.
+ * @module intentParser
  */
 
+const { INDIAN_STATES, INTENT_TYPES } = require('./constants');
+
 const INTENT_PATTERNS = {
-  process_query: [
+  [INTENT_TYPES.PROCESS]: [
     /how\s+(does|do|to)\s+(\w+\s+)*(vote|voting|election)/i,
     /how\s+do\s+i\s+vote/i,
     /voting\s+(process|procedure|steps?)/i,
@@ -22,7 +23,7 @@ const INTENT_PATTERNS = {
     /voter\s+(registration|id|card)/i,
     /polling\s+station/i,
   ],
-  eligibility_query: [
+  [INTENT_TYPES.ELIGIBILITY]: [
     /eligib(le|ility)/i,
     /can\s+i\s+vote/i,
     /am\s+i\s+(eligible|allowed)/i,
@@ -34,7 +35,7 @@ const INTENT_PATTERNS = {
     /nri\s+vot(e|ing)/i,
     /citizen(ship)?\s+(required|requirement|eligib)/i,
   ],
-  timeline_query: [
+  [INTENT_TYPES.TIMELINE]: [
     /timeline/i,
     /when\s+(is|are|does|will)\s+(the\s+)?(election|voting|phase)/i,
     /election\s+(date|schedule|calendar|timeline)/i,
@@ -46,29 +47,7 @@ const INTENT_PATTERNS = {
     /counting\s+date/i,
     /result\s+date/i,
   ],
-  candidate_query: [
-    /candidate/i,
-    /who\s+is\s+(running|contesting|standing)/i,
-    /contestants?/i,
-    /party\s+(list|candidates?)/i,
-    /lok\s+sabha\s+(seat|member|mp)/i,
-    /constituency\s+candidate/i,
-    /mla|mp\s+candidate/i,
-    /independent\s+candidate/i,
-  ],
-  results_query: [
-    /result/i,
-    /who\s+won/i,
-    /winner/i,
-    /vote\s+count(ing)?/i,
-    /tally/i,
-    /margin\s+of\s+victory/i,
-    /seat\s+(count|tally|won)/i,
-    /majority/i,
-    /coalition/i,
-    /hung\s+parliament/i,
-  ],
-  glossary_query: [
+  [INTENT_TYPES.GLOSSARY]: [
     /what\s+(is|does|are)\s+(a\s+)?(evm|vvpat|nota|mcc|adr|eci|deo|ro|blo)/i,
     /define\s/i,
     /meaning\s+of/i,
@@ -91,70 +70,72 @@ const ENTITY_PATTERNS = {
   term: /(?:what\s+is|define|meaning\s+of|explain)\s+(?:a\s+|an\s+|the\s+)?(\w+(?:\s+\w+){0,3})/i,
 };
 
-const INDIAN_STATES = [
-  'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
-  'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab',
-  'Rajasthan', 'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura',
-  'Uttar Pradesh', 'Uttarakhand', 'West Bengal',
-  'Delhi', 'Jammu and Kashmir', 'Ladakh', 'Puducherry',
-  'Chandigarh', 'Andaman and Nicobar',
-];
+/**
+ * Calculates match score for a specific intent.
+ * @param {string} query - Cleaned user query
+ * @param {string} intent - Intent type to check
+ * @returns {number} Confidence score (0-1)
+ */
+const calculateIntentScore = (query, intent) => {
+  const patterns = INTENT_PATTERNS[intent];
+  if (!patterns) {
+    return 0;
+  }
+  
+  let matchCount = 0;
+  for (const pattern of patterns) {
+    if (pattern.test(query)) {
+      matchCount++;
+    }
+  }
+  
+  return matchCount > 0 ? Math.min(matchCount / 2, 1) : 0;
+};
 
 /**
- * Classify a query into one of the defined intents
+ * Classify a query into one of the defined intents.
  * @param {string} query - User's input query
- * @returns {{ intent: string, confidence: number, entities: object }}
+ * @returns {{ intent: string, confidence: number, entities: object }} Classification results
  */
 function classifyIntent(query) {
-  if (query === null || query === undefined || typeof query !== 'string') {
-    return { intent: 'unknown', confidence: 0, entities: {} };
+  if (!query || typeof query !== 'string') {
+    return { intent: INTENT_TYPES.UNKNOWN, confidence: 0, entities: {} };
   }
 
   const trimmed = query.trim();
   if (trimmed.length === 0) {
-    return { intent: 'unknown', confidence: 0, entities: {} };
+    return { intent: INTENT_TYPES.UNKNOWN, confidence: 0, entities: {} };
   }
 
-  // Truncate very long input to prevent regex DoS
   const safeQuery = trimmed.length > 1000 ? trimmed.substring(0, 1000) : trimmed;
-
-  let bestIntent = 'unknown';
+  let bestIntent = INTENT_TYPES.UNKNOWN;
   let bestScore = 0;
 
-  // Score each intent — glossary gets tie-break priority
-  const intentOrder = ['glossary_query', 'process_query', 'eligibility_query', 'timeline_query', 'candidate_query', 'results_query'];
+  const intentsToCheck = [
+    INTENT_TYPES.GLOSSARY,
+    INTENT_TYPES.PROCESS,
+    INTENT_TYPES.ELIGIBILITY,
+    INTENT_TYPES.TIMELINE,
+  ];
 
-  for (const intent of intentOrder) {
-    const patterns = INTENT_PATTERNS[intent];
-    if (!patterns) { continue; }
-    let matchCount = 0;
-    for (const pattern of patterns) {
-      if (pattern.test(safeQuery)) {
-        matchCount++;
-      }
-    }
-    if (matchCount > 0) {
-      const score = Math.min(matchCount / 2, 1);
-      // glossary_query wins on equal scores (listed first)
-      if (score > bestScore || (score === bestScore && intent === 'glossary_query')) {
-        bestScore = score;
-        bestIntent = intent;
-      }
+  for (const intent of intentsToCheck) {
+    const score = calculateIntentScore(safeQuery, intent);
+    if (score > bestScore || (score === bestScore && intent === INTENT_TYPES.GLOSSARY)) {
+      bestScore = score;
+      bestIntent = intent;
     }
   }
 
   const entities = extractEntities(safeQuery);
-  const confidence = bestIntent === 'unknown' ? 0 : Math.round(bestScore * 100) / 100;
+  const confidence = bestIntent === INTENT_TYPES.UNKNOWN ? 0 : Math.round(bestScore * 100) / 100;
 
   return { intent: bestIntent, confidence, entities };
 }
 
 /**
- * Extract entities from a query string
+ * Extract entities (state, phase, zone, term) from a query string.
  * @param {string} query - User query
- * @returns {{ zone?: string, phase?: number, state?: string, term?: string }}
+ * @returns {Object} Extracted entities
  */
 function extractEntities(query) {
   const entities = {};
@@ -169,7 +150,6 @@ function extractEntities(query) {
     entities.phase = parseInt(phaseMatch[1], 10);
   }
 
-  // Match known Indian states
   for (const state of INDIAN_STATES) {
     if (query.toLowerCase().includes(state.toLowerCase())) {
       entities.state = state;
@@ -186,11 +166,11 @@ function extractEntities(query) {
 }
 
 /**
- * Get all supported intents
- * @returns {string[]}
+ * Get all supported intents.
+ * @returns {string[]} List of supported intent strings
  */
 function getSupportedIntents() {
-  return [...Object.keys(INTENT_PATTERNS), 'unknown'];
+  return Object.values(INTENT_TYPES);
 }
 
 module.exports = {
@@ -200,3 +180,4 @@ module.exports = {
   INTENT_PATTERNS,
   INDIAN_STATES,
 };
+

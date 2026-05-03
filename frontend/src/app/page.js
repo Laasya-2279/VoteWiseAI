@@ -1,7 +1,17 @@
+/**
+ * @fileoverview Main Landing Page for VoteWise AI.
+ * Showcases the primary value proposition, key features, and election statistics.
+ * @module HomePage
+ */
+
 'use client';
+
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 
+/**
+ * Quick action card data for the landing page.
+ */
 const QUICK_ACTIONS = [
   { id: 'action-guide', title: 'Guide Me', description: 'Learn the complete election process step by step', icon: '📖', href: '/guide/', color: 'from-saffron-500 to-saffron-700' },
   { id: 'action-eligibility', title: 'Check Eligibility', description: 'Find out if you can vote and how to register', icon: '✅', href: '/eligibility/', color: 'from-tricolor-green to-emerald-700' },
@@ -9,6 +19,9 @@ const QUICK_ACTIONS = [
   { id: 'action-quiz', title: 'Quiz Me', description: 'Test your knowledge about Indian elections', icon: '🧠', href: '/quiz/', color: 'from-accent-cyan to-teal-600' },
 ];
 
+/**
+ * Election statistics for the ticker bar.
+ */
 const ELECTION_STATS = [
   { label: 'Total Seats', value: '543', icon: '🏛️' },
   { label: 'Voting Phases', value: '7', icon: '📅' },
@@ -16,15 +29,22 @@ const ELECTION_STATS = [
   { label: 'Polling Stations', value: '10.5 L', icon: '🗳️' },
 ];
 
+/**
+ * The Home Page component.
+ * @returns {JSX.Element}
+ */
 export default function HomePage() {
   const [isLoaded, setIsLoaded] = useState(false);
-  useEffect(() => { setIsLoaded(true); }, []);
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
   return (
     <div className="pt-20">
       {/* Hero Section */}
       <section className="gradient-hero min-h-[85vh] flex flex-col items-center justify-center px-4 text-center relative overflow-hidden">
-        {/* Decorative background */}
+        {/* Decorative background blobs */}
         <div className="absolute inset-0 opacity-10" aria-hidden="true">
           <div className="absolute top-20 left-10 w-72 h-72 bg-saffron-500 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-10 w-96 h-96 bg-navy-500 rounded-full blur-3xl" />
@@ -37,8 +57,6 @@ export default function HomePage() {
           transition={{ duration: 0.8, ease: 'easeOut' }}
           className="relative z-10 max-w-4xl"
         >
-
-
           <h1 className="font-display text-5xl md:text-7xl font-bold mb-6 leading-tight">
             <span className="text-gradient">VoteWise</span>{' '}
             <span className="text-white">AI</span>
@@ -51,16 +69,24 @@ export default function HomePage() {
           </p>
 
           <div className="flex flex-wrap gap-4 justify-center">
-            <a href="/assistant/" className="btn-primary text-lg !px-8 !py-4" id="hero-cta-assistant" aria-label="Start chatting with VoteWise AI assistant">
+            <a 
+              href="/assistant/" 
+              className="btn-primary text-lg !px-8 !py-4" 
+              id="hero-cta-assistant" 
+              aria-label="Start chatting with VoteWise AI assistant"
+            >
               💬 Ask VoteWise AI
             </a>
-            <a href="/timeline/" className="btn-secondary text-lg !px-8 !py-4" id="hero-cta-timeline" aria-label="View the election timeline">
+            <a 
+              href="/timeline/" 
+              className="btn-secondary text-lg !px-8 !py-4" 
+              id="hero-cta-timeline" 
+              aria-label="View the election timeline"
+            >
               📊 View Timeline
             </a>
           </div>
         </motion.div>
-
-
       </section>
 
       {/* Stats Bar */}
@@ -99,11 +125,12 @@ export default function HomePage() {
                 transition={{ delay: 0.3 + i * 0.1 }}
                 className="glass-card p-6 group cursor-pointer hover:border-white/20 transition-all duration-300"
                 aria-label={`${action.title}: ${action.description}`}
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter') { window.location.href = action.href; } }}
                 role="link"
               >
-                <div className={`w-14 h-14 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform duration-300`} aria-hidden="true">
+                <div 
+                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-2xl mb-4 group-hover:scale-110 transition-transform duration-300`} 
+                  aria-hidden="true"
+                >
                   {action.icon}
                 </div>
                 <h3 className="text-lg font-semibold text-white mb-2">{action.title}</h3>
@@ -129,3 +156,4 @@ export default function HomePage() {
     </div>
   );
 }
+

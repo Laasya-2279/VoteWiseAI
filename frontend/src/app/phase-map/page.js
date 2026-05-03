@@ -1,67 +1,51 @@
+/**
+ * @fileoverview India Phase Map Page.
+ * Visualizes the election schedule across all Indian states.
+ * @module PhaseMapPage
+ */
+
 'use client';
+
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { trackPhaseMapStateClicked } from '@/lib/analytics';
 import GoogleMapComponent from '@/components/GoogleMapComponent';
+import { PHASE_COLORS, STATE_DATA } from '@/utils/constants';
 
-const PHASE_COLORS = {
-  1: { bg: 'bg-red-500', text: 'text-red-400', hex: '#EF4444', label: 'Phase 1 — Apr 19' },
-  2: { bg: 'bg-orange-500', text: 'text-orange-400', hex: '#F97316', label: 'Phase 2 — Apr 26' },
-  3: { bg: 'bg-yellow-500', text: 'text-yellow-400', hex: '#EAB308', label: 'Phase 3 — May 7' },
-  4: { bg: 'bg-green-500', text: 'text-green-400', hex: '#22C55E', label: 'Phase 4 — May 13' },
-  5: { bg: 'bg-teal-500', text: 'text-teal-400', hex: '#14B8A6', label: 'Phase 5 — May 20' },
-  6: { bg: 'bg-blue-500', text: 'text-blue-400', hex: '#3B82F6', label: 'Phase 6 — May 25' },
-  7: { bg: 'bg-purple-500', text: 'text-purple-400', hex: '#A855F7', label: 'Phase 7 — Jun 1' },
-};
-
-const STATE_DATA = [
-  { name: 'Uttar Pradesh', phases: [1,2,3,4,5,6,7], seats: 80, constituencies: 80 },
-  { name: 'Maharashtra', phases: [1,2,3,4,5], seats: 48, constituencies: 48 },
-  { name: 'West Bengal', phases: [1,2,3,4,5,6,7], seats: 42, constituencies: 42 },
-  { name: 'Bihar', phases: [1,2,3,4,5,6,7], seats: 40, constituencies: 40 },
-  { name: 'Tamil Nadu', phases: [1], seats: 39, constituencies: 39 },
-  { name: 'Madhya Pradesh', phases: [1,2,3,4,5,6], seats: 29, constituencies: 29 },
-  { name: 'Karnataka', phases: [2,3], seats: 28, constituencies: 28 },
-  { name: 'Gujarat', phases: [3], seats: 26, constituencies: 26 },
-  { name: 'Rajasthan', phases: [1,2], seats: 25, constituencies: 25 },
-  { name: 'Andhra Pradesh', phases: [4], seats: 25, constituencies: 25 },
-  { name: 'Odisha', phases: [4,5,6,7], seats: 21, constituencies: 21 },
-  { name: 'Kerala', phases: [2], seats: 20, constituencies: 20 },
-  { name: 'Telangana', phases: [4], seats: 17, constituencies: 17 },
-  { name: 'Jharkhand', phases: [4,5,6,7], seats: 14, constituencies: 14 },
-  { name: 'Assam', phases: [1,2,3], seats: 14, constituencies: 14 },
-  { name: 'Punjab', phases: [7], seats: 13, constituencies: 13 },
-  { name: 'Chhattisgarh', phases: [1,2,3], seats: 11, constituencies: 11 },
-  { name: 'Haryana', phases: [6], seats: 10, constituencies: 10 },
-  { name: 'Delhi', phases: [6], seats: 7, constituencies: 7 },
-  { name: 'Jammu and Kashmir', phases: [1,2,3,4], seats: 5, constituencies: 5 },
-  { name: 'Uttarakhand', phases: [1], seats: 5, constituencies: 5 },
-  { name: 'Himachal Pradesh', phases: [7], seats: 4, constituencies: 4 },
-  { name: 'Goa', phases: [3], seats: 2, constituencies: 2 },
-  { name: 'Tripura', phases: [1,2], seats: 2, constituencies: 2 },
-  { name: 'Meghalaya', phases: [1], seats: 2, constituencies: 2 },
-  { name: 'Manipur', phases: [1,2], seats: 2, constituencies: 2 },
-  { name: 'Arunachal Pradesh', phases: [1], seats: 2, constituencies: 2 },
-  { name: 'Nagaland', phases: [1], seats: 1, constituencies: 1 },
-  { name: 'Mizoram', phases: [1], seats: 1, constituencies: 1 },
-  { name: 'Sikkim', phases: [1], seats: 1, constituencies: 1 },
-  { name: 'Ladakh', phases: [5], seats: 1, constituencies: 1 },
-];
-
+/**
+ * Renders the interactive map and phase details.
+ * @returns {JSX.Element}
+ */
 export default function PhaseMapPage() {
   const [selectedState, setSelectedState] = useState(null);
   const [phaseFilter, setPhaseFilter] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
-  useEffect(() => { setIsLoaded(true); }, []);
+
+  useEffect(() => {
+    setIsLoaded(true);
+  }, []);
 
   const filteredStates = phaseFilter
     ? STATE_DATA.filter((s) => s.phases.includes(phaseFilter))
     : STATE_DATA;
 
+  /**
+   * Handles state selection from map or list.
+   * @param {Object} state - State data object
+   */
+  const handleStateSelect = (state) => {
+    setSelectedState(state);
+    trackPhaseMapStateClicked(state.name, state.phases[0]);
+  };
+
   return (
     <div className="pt-24 pb-16 px-4 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 20 }} className="text-center mb-12">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: isLoaded ? 1 : 0, y: isLoaded ? 0 : 20 }} 
+          className="text-center mb-12"
+        >
           <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">
             India <span className="text-gradient">Phase Map</span>
           </h1>
@@ -101,34 +85,34 @@ export default function PhaseMapPage() {
           <div className="lg:col-span-2">
             <GoogleMapComponent 
               selectedPhase={phaseFilter} 
-              onStateClick={setSelectedState} 
+              onStateClick={handleStateSelect} 
               statesData={STATE_DATA} 
             />
             
-            {/* Grid Fallback / List for Accessibility */}
+            {/* Grid for Accessibility */}
             <div className="mt-8 grid grid-cols-2 md:grid-cols-3 gap-3">
               {filteredStates.map((state, i) => {
-              const primaryPhase = state.phases[0];
-              const color = PHASE_COLORS[primaryPhase];
-              return (
-                <motion.button
-                  key={state.name}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: isLoaded ? 1 : 0, scale: isLoaded ? 1 : 0.9 }}
-                  transition={{ delay: i * 0.02 }}
-                  onClick={() => { setSelectedState(state); trackPhaseMapStateClicked(state.name, primaryPhase); }}
-                  className={`glass-card p-4 text-left hover:border-white/20 transition-all ${selectedState?.name === state.name ? 'ring-2 ring-saffron-500' : ''}`}
-                  aria-label={`${state.name}: ${state.seats} seats, voting in phase ${state.phases.join(', ')}. Click for details.`}
-                  id={`state-${state.name.replace(/\s+/g, '-').toLowerCase()}`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className={`w-3 h-3 rounded-full ${color.bg}`} aria-hidden="true" />
-                    <span className="text-sm font-semibold text-white truncate">{state.name}</span>
-                  </div>
-                  <p className="text-xs text-gray-400">{state.seats} seats · Phase {state.phases.join(', ')}</p>
-                </motion.button>
-              );
-            })}
+                const primaryPhase = state.phases[0];
+                const color = PHASE_COLORS[primaryPhase];
+                return (
+                  <motion.button
+                    key={state.name}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: isLoaded ? 1 : 0, scale: isLoaded ? 1 : 0.9 }}
+                    transition={{ delay: i * 0.02 }}
+                    onClick={() => handleStateSelect(state)}
+                    className={`glass-card p-4 text-left hover:border-white/20 transition-all ${selectedState?.name === state.name ? 'ring-2 ring-saffron-500' : ''}`}
+                    aria-label={`${state.name}: ${state.seats} seats, phase ${state.phases.join(', ')}`}
+                    id={`state-${state.name.replace(/\s+/g, '-').toLowerCase()}`}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`w-3 h-3 rounded-full ${color.bg}`} aria-hidden="true" />
+                      <span className="text-sm font-semibold text-white truncate">{state.name}</span>
+                    </div>
+                    <p className="text-xs text-gray-400">{state.seats} seats · Phase {state.phases.join(', ')}</p>
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
 
@@ -182,3 +166,4 @@ export default function PhaseMapPage() {
     </div>
   );
 }
+

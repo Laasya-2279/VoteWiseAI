@@ -1,233 +1,207 @@
 /**
- * API Routes — all backend endpoints for VoteWise AI
+ * @fileoverview Main API router for VoteWise AI.
+ * Handles chat queries, eligibility checks, voice services, and quiz submissions.
+ * @module apiRoutes
  */
+
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { logger } = require('../utils/logger');
-const { classifyIntent } = require('../utils/intentParser');
-const { checkEligibility } = require('../utils/eligibilityChecker');
 const { ragPipeline } = require('../services/ragPipeline');
 const { synthesizeSpeech, transcribeSpeech } = require('../services/voiceService');
+const { checkEligibility } = require('../utils/eligibilityChecker');
+const { classifyIntent } = require('../utils/intentParser');
 const { getQuestions, calculateScore, saveScore } = require('../services/quizEngine');
 const { getFirestore, getRealtimeDB } = require('../config/firebase');
+const { logger } = require('../utils/logger');
 const { verifyAuth } = require('../middleware/auth');
 const { voiceLimiter } = require('../middleware/rateLimiter');
+const { STATUS_CODES, FIREBASE_PATHS } = require('../utils/constants');
 
 const router = express.Router();
 
 /**
- * Validation error handler
+ * Validation error handler.
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ * @returns {Object|null} Error response or null
  */
 function handleValidation(req, res) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ error: 'Validation failed', details: errors.array() });
+    return res.status(STATUS_CODES.BAD_REQUEST).json({ error: 'Validation failed', details: errors.array() });
   }
   return null;
 }
 
 // ─── Health Check ──────────────────────────────────────────
-router.get('/health', (_req, res) => {
+
+/**
+ * Health check endpoint.
+ */
+router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString(), service: 'votewise-ai-backend' });
 });
 
 // ─── Query (RAG + Intent) ──────────────────────────────────
-router.post(
-  '/query',
-  [body('query').isString().trim().notEmpty().withMessage('Query is required')],
-  async (req, res) => {
-    const valErr = handleValidation(req, res);
-    if (valErr) { return; }
 
-    try {
-      const { query } = req.body;
-      const startTime = Date.now();
-
-      // Classify intent
-      const { intent, confidence, entities } = classifyIntent(query);
-
-      // Retrieve and generate
-      // Execute modular RAG pipeline
-      const result = await ragPipeline(query, intent);
-
-      const responseTime = Date.now() - startTime;
-
-      res.json({
-        ...result,
-        intent,
-        intentConfidence: confidence,
-        entities,
-        responseTimeMs: responseTime,
-      });
-    } catch (error) {
-      logger.error('Query endpoint failed', error);
-      res.status(503).json({
-        error: 'Service temporarily unavailable',
-        response: 'I am having trouble processing your request right now. Please try again in a moment.',
-        intent: 'unknown',
-        source: 'error',
-        chunksUsed: [],
-        confidence: 0,
-      });
-    }
+/**
+ * Handles RAG-based query processing.
+ * @param {Object} req - Express request
+ * @param {Object} res - Express response
+ */
+const queryHandler = async (req, res) => {
+  const valErr = handleValidation(req, res);
+  if (valErr) {
+    return;
   }
-);
 
-// ─── Text-to-Speech ────────────────────────────────────────
-router.post(
-  '/tts',
-  voiceLimiter,
-  [body('text').isString().trim().notEmpty().withMessage('Text is required')],
-  async (req, res) => {
-    const valErr = handleValidation(req, res);
-    if (valErr) { return; }
-
-    try {
-      const audioBuffer = await synthesizeSpeech(req.body.text);
-      res.set({
-        'Content-Type': 'audio/mpeg',
-        'Content-Length': audioBuffer.length,
-      });
-      res.send(audioBuffer);
-    } catch (error) {
-      logger.error('TTS endpoint failed', error);
-      res.status(503).json({ error: 'Text-to-speech service unavailable' });
-    }
-  }
-);
-
-// ─── Speech-to-Text ────────────────────────────────────────
-router.post(
-  '/stt',
-  voiceLimiter,
-  async (req, res) => {
-    try {
-      if (!req.body || !Buffer.isBuffer(req.body) && !req.body.audio) {
-        return res.status(400).json({ error: 'Audio data is required' });
-      }
-
-      const audioData = req.body.audio
-        ? Buffer.from(req.body.audio, 'base64')
-        : req.body;
-
-      const transcript = await transcribeSpeech(audioData);
-      res.json({ transcript, success: true });
-    } catch (error) {
-      logger.error('STT endpoint failed', error);
-      res.status(503).json({ error: 'Speech-to-text service unavailable' });
-    }
-  }
-);
-
-// ─── Eligibility Check ────────────────────────────────────
-router.post(
-  '/eligibility',
-  [
-    body('age').notEmpty().withMessage('Age is required'),
-    body('state').isString().trim().notEmpty().withMessage('State is required'),
-    body('citizenship').isString().trim().notEmpty().withMessage('Citizenship is required'),
-  ],
-  (req, res) => {
-    const valErr = handleValidation(req, res);
-    if (valErr) { return; }
-
-    try {
-      const { age, state, citizenship } = req.body;
-      const result = checkEligibility({ age, state, citizenship });
-      res.json(result);
-    } catch (error) {
-      logger.error('Eligibility endpoint failed', error);
-      res.status(500).json({ error: 'Eligibility check failed' });
-    }
-  }
-);
-
-// ─── Timeline ──────────────────────────────────────────────
-router.get('/timeline', async (_req, res) => {
   try {
-    const rtdb = getRealtimeDB();
-    if (!rtdb) {
-      return res.status(503).json({ error: 'Realtime Database not configured' });
-    }
-    const snapshot = await rtdb.ref('/timeline').once('value');
-    const data = snapshot.val() || {};
-    const stages = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-    res.json({ stages });
+    const { query } = req.body;
+    const startTime = Date.now();
+    const { intent, confidence, entities } = classifyIntent(query);
+    const result = await ragPipeline(query, intent);
+    const responseTime = Date.now() - startTime;
+
+    res.json({
+      ...result,
+      intent,
+      intentConfidence: confidence,
+      entities,
+      responseTimeMs: responseTime,
+    });
   } catch (error) {
-    logger.error('Timeline endpoint failed', error);
-    res.status(503).json({ error: 'Timeline service unavailable' });
+    logger.error('Query endpoint failed', error);
+    res.status(STATUS_CODES.SERVICE_UNAVAILABLE).json({
+      error: 'Service temporarily unavailable',
+      response: 'I am having trouble processing your request right now. Please try again later.',
+      intent: 'unknown',
+      source: 'error',
+      chunksUsed: [],
+      confidence: 0,
+    });
+  }
+};
+
+router.post('/query', [body('query').isString().trim().notEmpty().withMessage('Query is required')], queryHandler);
+
+// ─── Voice Services ────────────────────────────────────────
+
+/**
+ * Handles Text-to-Speech requests.
+ */
+router.post('/tts', voiceLimiter, [body('text').isString().trim().notEmpty()], async (req, res) => {
+  const valErr = handleValidation(req, res);
+  if (valErr) {
+    return;
+  }
+
+  try {
+    const audioBuffer = await synthesizeSpeech(req.body.text);
+    res.set({ 'Content-Type': 'audio/mpeg', 'Content-Length': audioBuffer.length });
+    res.send(audioBuffer);
+  } catch (error) {
+    logger.error('TTS endpoint failed', error);
+    res.status(STATUS_CODES.SERVICE_UNAVAILABLE).json({ error: 'TTS service unavailable' });
   }
 });
 
-// ─── Phases ────────────────────────────────────────────────
-router.get('/phases', async (_req, res) => {
+/**
+ * Handles Speech-to-Text requests.
+ */
+router.post('/stt', voiceLimiter, async (req, res) => {
   try {
-    const rtdb = getRealtimeDB();
-    if (!rtdb) {
-      return res.status(503).json({ error: 'Realtime Database not configured' });
+    const audioData = req.body.audio ? Buffer.from(req.body.audio, 'base64') : req.body;
+    if (!audioData || audioData.length === 0) {
+      return res.status(STATUS_CODES.BAD_REQUEST).json({ error: 'Audio data is required' });
     }
-    const snapshot = await rtdb.ref('/phases').once('value');
-    const data = snapshot.val() || {};
-    const phases = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-    res.json({ phases });
+    const transcript = await transcribeSpeech(audioData);
+    res.json({ transcript, success: true });
   } catch (error) {
-    logger.error('Phases endpoint failed', error);
-    res.status(503).json({ error: 'Phases service unavailable' });
+    logger.error('STT endpoint failed', error);
+    res.status(STATUS_CODES.SERVICE_UNAVAILABLE).json({ error: 'STT service unavailable' });
   }
 });
 
-// ─── Glossary ──────────────────────────────────────────────
-router.get('/glossary', async (_req, res) => {
+// ─── Domain Logic ──────────────────────────────────────────
+
+/**
+ * Handles eligibility checks.
+ */
+router.post('/eligibility', [
+  body('age').notEmpty(),
+  body('state').isString().trim().notEmpty(),
+  body('citizenship').isString().trim().notEmpty(),
+], (req, res) => {
+  const valErr = handleValidation(req, res);
+  if (valErr) {
+    return;
+  }
+
   try {
-    const rtdb = getRealtimeDB();
-    if (!rtdb) {
-      return res.status(503).json({ error: 'Realtime Database not configured' });
-    }
-    const snapshot = await rtdb.ref('/glossary').once('value');
-    const data = snapshot.val() || {};
-    const terms = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-    res.json({ terms });
+    const result = checkEligibility(req.body);
+    res.json(result);
   } catch (error) {
-    logger.error('Glossary endpoint failed', error);
-    res.status(503).json({ error: 'Glossary service unavailable' });
+    logger.error('Eligibility endpoint failed', error);
+    res.status(STATUS_CODES.INTERNAL_ERROR).json({ error: 'Eligibility check failed' });
   }
 });
 
-// ─── Quiz Questions ────────────────────────────────────────
-router.get('/quiz/questions', (_req, res) => {
+/**
+ * Helper to fetch RTDB references.
+ * @param {string} path - RTDB path
+ * @returns {Function} Express handler
+ */
+const createRtdbFetcher = (path) => async (req, res) => {
   try {
-    const questions = getQuestions();
-    res.json({ questions });
+    const rtdb = getRealtimeDB();
+    if (!rtdb) {
+      return res.status(STATUS_CODES.SERVICE_UNAVAILABLE).json({ error: 'Database not configured' });
+    }
+    const snapshot = await rtdb.ref(path).once('value');
+    const data = snapshot.val() || {};
+    res.json(Object.entries(data).map(([id, val]) => ({ id, ...val })));
+  } catch (error) {
+    logger.error(`RTDB fetch failed for ${path}`, error);
+    res.status(STATUS_CODES.SERVICE_UNAVAILABLE).json({ error: 'Service unavailable' });
+  }
+};
+
+router.get('/timeline', createRtdbFetcher(FIREBASE_PATHS.TIMELINE));
+router.get('/phases', createRtdbFetcher(FIREBASE_PATHS.PHASES));
+router.get('/glossary', createRtdbFetcher(FIREBASE_PATHS.GLOSSARY));
+
+// ─── Quiz Service ──────────────────────────────────────────
+
+router.get('/quiz/questions', (req, res) => {
+  try {
+    res.json({ questions: getQuestions() });
   } catch (error) {
     logger.error('Quiz questions endpoint failed', error);
-    res.status(500).json({ error: 'Failed to load quiz questions' });
+    res.status(STATUS_CODES.INTERNAL_ERROR).json({ error: 'Failed to load quiz questions' });
   }
 });
 
-// ─── Quiz Score (Authenticated) ────────────────────────────
-router.post(
-  '/quiz/score',
-  verifyAuth,
-  [
-    body('answers').isArray({ min: 1 }).withMessage('Answers array is required'),
-    body('timeTaken').optional().isNumeric(),
-  ],
-  async (req, res) => {
-    const valErr = handleValidation(req, res);
-    if (valErr) { return; }
-
-    try {
-      const { answers, timeTaken } = req.body;
-      const { score, total, results } = calculateScore(answers);
-      const firestore = getFirestore();
-      const docId = await saveScore(firestore, req.user.uid, score, total, timeTaken);
-
-      res.json({ score, total, results, docId, percentage: Math.round((score / total) * 100) });
-    } catch (error) {
-      logger.error('Quiz score endpoint failed', error);
-      res.status(500).json({ error: 'Failed to save quiz score' });
-    }
+router.post('/quiz/score', verifyAuth, [
+  body('answers').isArray({ min: 1 }),
+  body('timeTaken').optional().isNumeric(),
+], async (req, res) => {
+  const valErr = handleValidation(req, res);
+  if (valErr) {
+    return;
   }
-);
+
+  try {
+    const { answers, timeTaken } = req.body;
+    const { score, total, results } = calculateScore(answers);
+    const firestore = getFirestore();
+    const docId = await saveScore(firestore, req.user.uid, score, total, timeTaken);
+
+    res.json({ score, total, results, docId, percentage: Math.round((score / total) * 100) });
+  } catch (error) {
+    logger.error('Quiz score endpoint failed', error);
+    res.status(STATUS_CODES.INTERNAL_ERROR).json({ error: 'Failed to save quiz score' });
+  }
+});
 
 module.exports = router;
+

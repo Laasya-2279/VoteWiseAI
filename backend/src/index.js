@@ -1,6 +1,9 @@
 /**
- * VoteWise AI Backend — Express Server Entry Point
+ * @fileoverview VoteWise AI Backend — Express Server Entry Point.
+ * Bootstraps the application, configures middleware, and initializes services.
+ * @module serverEntry
  */
+
 require('dotenv').config({ path: require('path').resolve(__dirname, '../../.env') });
 
 const express = require('express');
@@ -13,7 +16,7 @@ const { globalLimiter } = require('./middleware/rateLimiter');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 const apiRoutes = require('./routes/api');
 
-// Validate environment
+// Validate environment variables before startup
 validateEnv();
 
 const app = express();
@@ -50,6 +53,10 @@ app.use(express.raw({ type: 'audio/*', limit: '10mb' }));
 app.use(globalLimiter);
 
 // ─── Routes ────────────────────────────────────────────────
+
+/**
+ * Root health endpoint.
+ */
 app.get('/', (req, res) => {
   res.json({ status: 'active', message: 'VoteWise AI Backend is running' });
 });
@@ -62,6 +69,11 @@ app.use(errorHandler);
 
 // ─── Initialize Firebase & Start Server ────────────────────
 let server;
+
+/**
+ * Initializes services and starts the Express server.
+ * @returns {Promise<Object>} The started server instance
+ */
 async function startServer() {
   try {
     initializeFirebase();
@@ -84,3 +96,4 @@ if (require.main === module) {
 }
 
 module.exports = { app, startServer };
+

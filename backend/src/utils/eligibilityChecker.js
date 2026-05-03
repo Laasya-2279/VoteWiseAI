@@ -1,7 +1,11 @@
 /**
- * Eligibility Checker — evaluates voter eligibility based on
- * age, citizenship, and state, then returns status with registration steps.
+ * @fileoverview Eligibility Checker for VoteWise AI.
+ * Evaluates voter eligibility based on age, citizenship, and state.
+ * @module eligibilityChecker
  */
+
+const { ECI_LINKS } = require('./constants');
+const { logger } = require('./logger');
 
 const REGISTRATION_STEPS = [
   'Visit the National Voters Service Portal (NVSP) at voters.eci.gov.in',
@@ -47,54 +51,96 @@ const STATE_PORTALS = {
 };
 
 /**
- * Check voter eligibility
- * @param {{ age: number, citizenship: string, state: string }} params
- * @returns {{ eligible: boolean, reason: string, registrationSteps?: string[], statePortal?: string, form6Link: string }}
+ * Validates the eligibility parameters.
+ * @param {Object} params - Input parameters
+ * @returns {string|null} Error message or null if valid
+ */
+const validateInputs = ({ age, citizenship, state }) => {
+  if (age === undefined || age === null || isNaN(Number(age))) {
+    return 'Age is required and must be a valid number.';
+  }
+  if (!citizenship || typeof citizenship !== 'string') {
+    return 'Citizenship status is required.';
+  }
+  if (!state || typeof state !== 'string') {
+    return 'State of residence is required.';
+  }
+  return null;
+};
+
+/**
+ * Checks if a user is eligible based on citizenship and age.
+ * @param {number} age - User age
+ * @param {string} citizenship - User citizenship
+ * @returns {{eligible: boolean, reason: string}}
+ */
+const evalEligibility = (age, citizenship) => {
+  const citizenLower = (citizenship || '').toLowerCase().trim();
+  
+  // Robust matching for frontend values: 'Indian Citizen', 'Non-Resident Indian (NRI)', etc.
+  const isIndian = /indian|india|nri/.test(citizenLower);
+                   
+  logger.info('Evaluating eligibility', { age, citizenship, isIndian });
+
+  if (!isIndian) {
+    return {
+      eligible: false,
+      reason: 'Only Indian citizens are eligible to vote. NRIs holding Indian passports can register as overseas voters.',
+    };
+  }
+
+  // Minimum voting age in India is 18
+  if (age < 18) {
+    return {
+      eligible: false,
+      reason: `You must be at least 18 years old to vote. You will be eligible in ${18 - age} year(s).`,
+    };
+  }
+
+  return { eligible: true, reason: '' };
+};
+
+/**
+ * Check voter eligibility and return guidance.
+ * @param {Object} params - User details
+ * @param {number} params.age - User age
+ * @param {string} params.citizenship - User citizenship
+ * @param {string} params.state - User state
+ * @returns {{ eligible: boolean, reason: string, registrationSteps: string[], statePortal: string|null, form6Link: string }}
  */
 function checkEligibility({ age, citizenship, state }) {
-  const result = {
-    eligible: false,
-    reason: '',
-    registrationSteps: [],
-    statePortal: null,
-    form6Link: 'https://voters.eci.gov.in/signup',
+  const error = validateInputs({ age, citizenship, state });
+  if (error) {
+    logger.warn('Eligibility check validation failed', { error, age, citizenship, state });
+    return { 
+      eligible: false, 
+      reason: error, 
+      registrationSteps: [], 
+      statePortal: null, 
+      form6Link: ECI_LINKS.FORM_6_SIGNUP 
+    };
+  }
+
+  const { eligible, reason } = evalEligibility(Number(age), citizenship);
+  
+  if (!eligible) {
+    return { 
+      eligible, 
+      reason, 
+      registrationSteps: [], 
+      statePortal: null, 
+      form6Link: ECI_LINKS.FORM_6_SIGNUP 
+    };
+  }
+
+  return {
+    eligible: true,
+    reason: `You are eligible to vote in ${state}! Ensure you are registered in the electoral roll.`,
+    registrationSteps: REGISTRATION_STEPS,
+    statePortal: STATE_PORTALS[state] || null,
+    form6Link: ECI_LINKS.FORM_6_SIGNUP,
   };
-
-  // Validate inputs
-  if (age === undefined || age === null || isNaN(Number(age))) {
-    result.reason = 'Age is required and must be a valid number.';
-    return result;
-  }
-
-  if (!citizenship || typeof citizenship !== 'string') {
-    result.reason = 'Citizenship status is required.';
-    return result;
-  }
-
-  if (!state || typeof state !== 'string') {
-    result.reason = 'State of residence is required.';
-    return result;
-  }
-
-  const numAge = Number(age);
-
-  if (citizenship.toLowerCase() !== 'indian' && citizenship.toLowerCase() !== 'india') {
-    result.reason = 'Only Indian citizens are eligible to vote in Indian elections. NRIs holding Indian passports can register as overseas voters.';
-    return result;
-  }
-
-  if (numAge < 18) {
-    result.reason = `You must be at least 18 years old to vote. You will be eligible in ${18 - numAge} year(s).`;
-    return result;
-  }
-
-  // Eligible
-  result.eligible = true;
-  result.reason = `You are eligible to vote in ${state}! Ensure you are registered in the electoral roll.`;
-  result.registrationSteps = REGISTRATION_STEPS;
-  result.statePortal = STATE_PORTALS[state] || null;
-
-  return result;
 }
 
 module.exports = { checkEligibility, REGISTRATION_STEPS, STATE_PORTALS };
+

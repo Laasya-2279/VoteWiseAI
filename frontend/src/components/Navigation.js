@@ -1,11 +1,25 @@
+/**
+ * @fileoverview Main Navigation component for VoteWise AI.
+ * Provides links to all primary features and handles authentication UI.
+ * @module Navigation
+ */
+
 'use client';
+
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 
+/**
+ * Renders the top navigation bar with dynamic links and auth state.
+ * @returns {JSX.Element}
+ */
 export default function Navigation() {
   const { user, logout, loading } = useAuth();
   
+  /**
+   * Primary navigation links for the application.
+   */
   const links = [
     { href: '/', label: 'Home', id: 'nav-home' },
     { href: '/timeline/', label: 'Timeline', id: 'nav-timeline' },
@@ -62,6 +76,7 @@ export default function Navigation() {
                   onClick={logout}
                   className="px-4 py-2 rounded-xl text-xs font-semibold bg-white/5 hover:bg-white/10 text-gray-300 border border-white/5 transition-all"
                   aria-label="Logout from account"
+                  id="btn-nav-logout"
                 >
                   Logout
                 </button>
@@ -86,3 +101,4 @@ export default function Navigation() {
     </nav>
   );
 }
+

@@ -1,9 +1,24 @@
+/**
+ * @fileoverview Interactive Google Maps component for the India Phase Map.
+ * Renders state-wise voting information with custom markers.
+ * @module GoogleMapComponent
+ */
+
 'use client';
+
 import { useEffect, useRef, useState } from 'react';
+import PropTypes from 'prop-types';
 import { Wrapper } from '@googlemaps/react-wrapper';
+import { MAP_CONFIG, PHASE_COLORS } from '@/utils/constants';
 
-const MAP_ID = 'votewise-india-map';
-
+/**
+ * Higher-order component to wrap Google Maps initialization.
+ * @param {Object} props - Component props
+ * @param {number|null} props.selectedPhase - Currently filtered phase
+ * @param {Function} props.onStateClick - Callback when a marker is clicked
+ * @param {Array} props.statesData - Geographic and phase data for states
+ * @returns {JSX.Element}
+ */
 export default function GoogleMapComponent({ selectedPhase, onStateClick, statesData }) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
@@ -27,6 +42,21 @@ export default function GoogleMapComponent({ selectedPhase, onStateClick, states
   );
 }
 
+GoogleMapComponent.propTypes = {
+  selectedPhase: PropTypes.number,
+  onStateClick: PropTypes.func.isRequired,
+  statesData: PropTypes.arrayOf(PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    phases: PropTypes.arrayOf(PropTypes.number).isRequired,
+    seats: PropTypes.number.isRequired,
+  })).isRequired,
+};
+
+/**
+ * The actual Map implementation using Google Maps JS API.
+ * @param {Object} props - Component props
+ * @returns {JSX.Element}
+ */
 function ActualMap({ selectedPhase, onStateClick, statesData }) {
   const ref = useRef(null);
   const [map, setMap] = useState(null);
@@ -34,9 +64,9 @@ function ActualMap({ selectedPhase, onStateClick, statesData }) {
   useEffect(() => {
     if (ref.current && !map) {
       const newMap = new window.google.maps.Map(ref.current, {
-        center: { lat: 20.5937, lng: 78.9629 }, // Center of India
-        zoom: 5,
-        mapId: MAP_ID,
+        center: MAP_CONFIG.CENTER,
+        zoom: MAP_CONFIG.ZOOM,
+        mapId: MAP_CONFIG.MAP_ID,
         disableDefaultUI: true,
         styles: [
           { elementType: 'geometry', stylers: [{ color: '#0A0E1A' }] },
@@ -48,14 +78,12 @@ function ActualMap({ selectedPhase, onStateClick, statesData }) {
       });
       setMap(newMap);
     }
-  }, [ref, map]);
+  }, [map]);
 
   useEffect(() => {
     if (map && statesData) {
-      // In a real production app, we would load GEOJSON for Indian state boundaries.
-      // For this hackathon prototype, we place high-quality custom markers for each state.
       statesData.forEach((state) => {
-        // Mock coordinates for major states
+        // High-quality custom markers for major states
         const coords = {
           'Uttar Pradesh': { lat: 26.8467, lng: 80.9462 },
           'Maharashtra': { lat: 19.7515, lng: 75.7139 },
@@ -77,9 +105,6 @@ function ActualMap({ selectedPhase, onStateClick, statesData }) {
 
         const pos = coords[state.name] || { lat: 20 + Math.random() * 10, lng: 75 + Math.random() * 10 };
         const primaryPhase = state.phases[0];
-        const colors = { 1: '#EF4444', 2: '#F97316', 3: '#EAB308', 4: '#22C55E', 5: '#14B8A6', 6: '#3B82F6', 7: '#A855F7' };
-        
-        // Hide marker if filtered by phase and doesn't match
         const visible = !selectedPhase || state.phases.includes(selectedPhase);
 
         const marker = new window.google.maps.Marker({
@@ -89,7 +114,7 @@ function ActualMap({ selectedPhase, onStateClick, statesData }) {
           label: { text: state.seats.toString(), color: 'white', fontWeight: 'bold' },
           icon: {
             path: window.google.maps.SymbolPath.CIRCLE,
-            fillColor: colors[primaryPhase] || '#FF9933',
+            fillColor: PHASE_COLORS[primaryPhase]?.hex || '#FF9933',
             fillOpacity: 0.9,
             strokeColor: '#FFFFFF',
             strokeWeight: 2,
@@ -106,3 +131,10 @@ function ActualMap({ selectedPhase, onStateClick, statesData }) {
 
   return <div ref={ref} className="w-full h-full" id="google-map-element" />;
 }
+
+ActualMap.propTypes = {
+  selectedPhase: PropTypes.number,
+  onStateClick: PropTypes.func.isRequired,
+  statesData: PropTypes.array.isRequired,
+};
+

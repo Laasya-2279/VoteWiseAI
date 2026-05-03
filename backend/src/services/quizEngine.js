@@ -1,7 +1,11 @@
 /**
- * Quiz Engine — election quiz questions, scoring, and persistence
+ * @fileoverview Quiz Engine for VoteWise AI.
+ * Manages election-related quiz questions, scoring, and persistence.
+ * @module quizEngine
  */
+
 const { logger } = require('../utils/logger');
+const { FIREBASE_PATHS } = require('../utils/constants');
 
 const QUIZ_QUESTIONS = [
   {
@@ -82,8 +86,23 @@ const QUIZ_QUESTIONS = [
 ];
 
 /**
+ * Validates a single answer object.
+ * @param {Object} answer - User answer
+ * @returns {boolean} True if valid
+ */
+const isValidAnswer = (answer) => answer && typeof answer.questionId === 'string';
+
+/**
+ * Checks if a given answer index is correct for a question.
+ * @param {Object} question - Question object
+ * @param {number} selectedIndex - User selected index
+ * @returns {boolean} True if correct
+ */
+const isCorrectAnswer = (question, selectedIndex) => selectedIndex === question.correctIndex;
+
+/**
  * Get quiz questions (returns questions without correct answers for client)
- * @returns {Array<{id: string, question: string, options: string[]}>}
+ * @returns {Array<{id: string, question: string, options: string[]}>} Array of question objects
  */
 function getQuestions() {
   return QUIZ_QUESTIONS.map(({ id, question, options }) => ({
@@ -94,9 +113,10 @@ function getQuestions() {
 }
 
 /**
- * Calculate score from user answers
- * @param {Array<{questionId: string, selectedIndex: number}>} answers
- * @returns {{score: number, total: number, results: Array<{questionId: string, correct: boolean, correctIndex: number, explanation: string}>}}
+ * Calculate score from user answers.
+ * Splits processing into validation, lookup, and scoring steps.
+ * @param {Array<{questionId: string, selectedIndex: number}>} answers - User submitted answers
+ * @returns {{score: number, total: number, results: Array}} Scoring breakdown
  */
 function calculateScore(answers) {
   if (!Array.isArray(answers)) {
@@ -104,57 +124,50 @@ function calculateScore(answers) {
   }
 
   let score = 0;
-  const results = [];
-
-  for (const answer of answers) {
-    if (!answer || typeof answer.questionId !== 'string') {
-      continue;
+  const results = answers.map((answer) => {
+    if (!isValidAnswer(answer)) {
+      return null;
     }
 
     const question = QUIZ_QUESTIONS.find((q) => q.id === answer.questionId);
     if (!question) {
-      continue;
+      return null;
     }
 
     const selectedIndex = Number(answer.selectedIndex);
-    if (isNaN(selectedIndex) || selectedIndex < 0 || selectedIndex >= question.options.length) {
-      results.push({
-        questionId: answer.questionId,
-        correct: false,
-        correctIndex: question.correctIndex,
-        explanation: question.explanation,
-      });
-      continue;
-    }
+    const isIndexValid = !isNaN(selectedIndex) && 
+                         selectedIndex >= 0 && 
+                         selectedIndex < question.options.length;
 
-    const correct = selectedIndex === question.correctIndex;
+    const correct = isIndexValid && isCorrectAnswer(question, selectedIndex);
     if (correct) {
       score++;
     }
 
-    results.push({
+    return {
       questionId: answer.questionId,
       correct,
       correctIndex: question.correctIndex,
       explanation: question.explanation,
-    });
-  }
+    };
+  }).filter(Boolean);
 
   return { score, total: QUIZ_QUESTIONS.length, results };
 }
 
 /**
- * Save quiz score to Firestore
+ * Save quiz score to Firestore.
  * @param {object} firestore - Firestore instance
  * @param {string} userId - Authenticated user ID
  * @param {number} score - User score
  * @param {number} total - Total questions
  * @param {number} timeTaken - Time in seconds
  * @returns {Promise<string>} Document ID
+ * @throws {Error} If database write fails
  */
 async function saveScore(firestore, userId, score, total, timeTaken) {
   try {
-    const docRef = await firestore.collection('quiz_scores').add({
+    const docRef = await firestore.collection(FIREBASE_PATHS.QUIZ_SCORES).add({
       userId,
       score,
       total,
@@ -176,3 +189,4 @@ module.exports = {
   saveScore,
   QUIZ_QUESTIONS,
 };
+
