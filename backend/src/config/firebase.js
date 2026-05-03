@@ -32,7 +32,7 @@ function initializeFirebase() {
     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
       const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
       config.credential = admin.credential.cert(serviceAccount);
-    } 
+    }
     // Use service account file if available (Best for Local)
     else if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT && process.env.NODE_ENV !== 'test') {
       const path = require('path');
@@ -48,7 +48,7 @@ function initializeFirebase() {
     db = admin.firestore();
     auth = admin.auth();
 
-    if (process.env.FIREBASE_DATABASE_URL) {
+    if (process.env.FIREBASE_DATABASE_URL || process.env.NODE_ENV === 'test') {
       rtdb = admin.database();
     }
 

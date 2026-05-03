@@ -13,6 +13,8 @@ const INTENT_TYPES = Object.freeze({
   QUIZ: 'quiz_query',
   MAP: 'map_query',
   GENERAL: 'general_query',
+  CANDIDATE: 'candidate_query',
+  RESULTS: 'results_query',
   UNKNOWN: 'unknown',
 });
 

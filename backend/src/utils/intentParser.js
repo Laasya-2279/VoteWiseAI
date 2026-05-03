@@ -49,17 +49,31 @@ const INTENT_PATTERNS = {
   ],
   [INTENT_TYPES.GLOSSARY]: [
     /what\s+(is|does|are)\s+(a\s+)?(evm|vvpat|nota|mcc|adr|eci|deo|ro|blo)/i,
-    /define\s/i,
     /meaning\s+of/i,
     /glossary/i,
     /explain\s+(the\s+)?(term|word|acronym)/i,
     /full\s+form/i,
     /stands?\s+for/i,
-    /abbreviation/i,
     /returning\s+officer/i,
     /booth\s+level\s+officer/i,
     /district\s+election\s+officer/i,
     /what\s+(is|are)\s+(evm|vvpat|nota|mcc|epic|fptp|blo|deo|ro|eci|adr)/i,
+  ],
+  [INTENT_TYPES.CANDIDATE]: [
+    /candidate/i,
+    /contestant/i,
+    /who\s+is\s+running/i,
+    /mp\s+from/i,
+    /mla\s+from/i,
+    /lok\s+sabha\s+(candidate|contestant)/i,
+  ],
+  [INTENT_TYPES.RESULTS]: [
+    /who\s+won/i,
+    /winner/i,
+    /vote\s+count/i,
+    /result/i,
+    /elected/i,
+    /won\s+the\s+election/i,
   ],
 };
 
@@ -81,14 +95,14 @@ const calculateIntentScore = (query, intent) => {
   if (!patterns) {
     return 0;
   }
-  
+
   let matchCount = 0;
   for (const pattern of patterns) {
     if (pattern.test(query)) {
       matchCount++;
     }
   }
-  
+
   return matchCount > 0 ? Math.min(matchCount / 2, 1) : 0;
 };
 
@@ -106,21 +120,29 @@ function classifyIntent(query) {
   if (trimmed.length === 0) {
     return { intent: INTENT_TYPES.UNKNOWN, confidence: 0, entities: {} };
   }
+  const hasVowels = /[aeiou]/i.test(trimmed);
+  const hasSpaces = trimmed.includes(' ');
+  const looksLikeGibberish = !hasVowels || (!hasSpaces && trimmed.length > 20);
+  if (looksLikeGibberish) {
+    return { intent: INTENT_TYPES.UNKNOWN, confidence: 0, entities: {} };
+  }
 
   const safeQuery = trimmed.length > 1000 ? trimmed.substring(0, 1000) : trimmed;
   let bestIntent = INTENT_TYPES.UNKNOWN;
   let bestScore = 0;
 
   const intentsToCheck = [
-    INTENT_TYPES.GLOSSARY,
-    INTENT_TYPES.PROCESS,
     INTENT_TYPES.ELIGIBILITY,
     INTENT_TYPES.TIMELINE,
+    INTENT_TYPES.PROCESS,
+    INTENT_TYPES.CANDIDATE,
+    INTENT_TYPES.RESULTS,
+    INTENT_TYPES.GLOSSARY,
   ];
 
   for (const intent of intentsToCheck) {
     const score = calculateIntentScore(safeQuery, intent);
-    if (score > bestScore || (score === bestScore && intent === INTENT_TYPES.GLOSSARY)) {
+    if (score > bestScore) {
       bestScore = score;
       bestIntent = intent;
     }
