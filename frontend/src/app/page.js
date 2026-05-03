@@ -37,15 +37,7 @@ export default function HomePage() {
           transition={{ duration: 0.8, ease: 'easeOut' }}
           className="relative z-10 max-w-4xl"
         >
-          {/* India Map Silhouette */}
-          <motion.div
-            animate={{ y: [0, -10, 0] }}
-            transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            className="text-8xl mb-6"
-            aria-hidden="true"
-          >
-            🇮🇳
-          </motion.div>
+
 
           <h1 className="font-display text-5xl md:text-7xl font-bold mb-6 leading-tight">
             <span className="text-gradient">VoteWise</span>{' '}
@@ -68,18 +60,7 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* Live Election Status Banner */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: isLoaded ? 1 : 0 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="absolute bottom-8 left-0 right-0 flex justify-center"
-        >
-          <div className="glass-card px-6 py-3 flex items-center gap-3" role="status" aria-label="Current election status">
-            <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" aria-hidden="true" />
-            <span className="text-sm text-gray-300">2024 Lok Sabha Elections — Results Declared</span>
-          </div>
-        </motion.div>
+
       </section>
 
       {/* Stats Bar */}

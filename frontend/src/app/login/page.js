@@ -1,82 +1,64 @@
 'use client';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [mode, setMode] = useState('login');
+  const { user, loginWithGoogle, loading } = useAuth();
+  const router = useRouter();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const { auth } = await import('@/lib/firebase');
-      const { signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('firebase/auth');
-
-      if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
-      } else {
-        await createUserWithEmailAndPassword(auth, email, password);
-      }
-      window.location.href = '/';
-    } catch (err) {
-      const messages = {
-        'auth/user-not-found': 'No account found with this email.',
-        'auth/wrong-password': 'Incorrect password.',
-        'auth/email-already-in-use': 'An account with this email already exists.',
-        'auth/weak-password': 'Password must be at least 6 characters.',
-        'auth/invalid-email': 'Please enter a valid email address.',
-      };
-      setError(messages[err.code] || 'Authentication failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/');
     }
-  };
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#0A0E1A]">
+        <div className="w-12 h-12 border-4 border-saffron-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="pt-24 pb-16 px-4 min-h-screen flex items-center justify-center">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <span className="text-5xl" aria-hidden="true">🗳️</span>
-          <h1 className="font-display text-3xl font-bold mt-4 mb-2">
-            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
-          </h1>
-          <p className="text-gray-400">Sign in to save quiz scores and track progress</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center px-4 bg-[#0A0E1A] relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-1/4 -left-20 w-96 h-96 bg-saffron-600/10 rounded-full blur-[100px]" />
+      <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-navy-600/10 rounded-full blur-[100px]" />
 
-        <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
-          {error && (
-            <div role="alert" className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-              {error}
-            </div>
-          )}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="glass-card max-w-md w-full p-10 text-center relative z-10 border border-white/10"
+      >
+        <div className="text-4xl mb-6">🗳️</div>
+        <h1 className="text-3xl font-display font-bold mb-2">
+          Welcome to <span className="text-gradient">VoteWise AI</span>
+        </h1>
+        <p className="text-gray-400 mb-8 text-sm leading-relaxed">
+          Your intelligent assistant for Indian elections. Please sign in to access your dashboard, 
+          track your voting status, and get personalized election guides.
+        </p>
 
-          <div>
-            <label htmlFor="login-email" className="block text-sm font-medium text-gray-300 mb-2">Email</label>
-            <input id="login-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="you@example.com" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-saffron-500 focus:ring-1 focus:ring-saffron-500" aria-label="Enter your email address" />
-          </div>
+        <button
+          onClick={loginWithGoogle}
+          className="w-full flex items-center justify-center gap-3 px-6 py-3.5 bg-white text-gray-900 rounded-xl font-semibold hover:bg-gray-100 transition-all duration-300 shadow-xl shadow-white/5"
+          id="google-signin-button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.27.81-.57z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+          Sign in with Google
+        </button>
 
-          <div>
-            <label htmlFor="login-password" className="block text-sm font-medium text-gray-300 mb-2">Password</label>
-            <input id="login-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} placeholder="••••••••" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:border-saffron-500 focus:ring-1 focus:ring-saffron-500" aria-label="Enter your password" />
-          </div>
-
-          <button type="submit" disabled={isLoading} className="btn-primary w-full !py-4 text-lg disabled:opacity-50" aria-label={mode === 'login' ? 'Sign in to your account' : 'Create your account'} aria-busy={isLoading} id="btn-auth">
-            {isLoading ? 'Please wait...' : mode === 'login' ? 'Sign In' : 'Create Account'}
-          </button>
-
-          <p className="text-center text-sm text-gray-400">
-            {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
-            <button type="button" onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); }} className="text-saffron-400 hover:text-saffron-300 underline" aria-label={mode === 'login' ? 'Switch to create account' : 'Switch to sign in'} id="btn-toggle-mode">
-              {mode === 'login' ? 'Sign Up' : 'Sign In'}
-            </button>
-          </p>
-        </form>
+        <p className="mt-8 text-[10px] text-gray-500 uppercase tracking-widest font-medium">
+          Secure Authentication powered by Firebase
+        </p>
       </motion.div>
     </div>
   );
