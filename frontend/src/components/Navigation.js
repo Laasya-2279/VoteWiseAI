@@ -1,6 +1,7 @@
 'use client';
 import { useAuth } from '@/context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import Image from 'next/image';
 
 export default function Navigation() {
   const { user, logout, loading } = useAuth();
@@ -49,10 +50,12 @@ export default function Navigation() {
                 className="flex items-center gap-3"
               >
                 {user.photoURL && (
-                  <img 
+                  <Image 
                     src={user.photoURL} 
-                    alt={user.displayName} 
-                    className="w-8 h-8 rounded-full border border-white/10"
+                    alt={user.displayName || 'User profile'} 
+                    width={32}
+                    height={32}
+                    className="rounded-full border border-white/10"
                   />
                 )}
                 <button

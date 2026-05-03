@@ -40,6 +40,7 @@ export const AuthProvider = ({ children }) => {
       await signInWithPopup(auth, provider);
       router.push('/');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Login failed:', error);
     }
   };
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }) => {
       await signOut(auth);
       router.push('/login');
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Logout failed:', error);
     }
   };
